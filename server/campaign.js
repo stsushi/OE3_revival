@@ -52,10 +52,13 @@ const VALID_TECH_IDS   = [350,351,352,353,354,355,356,357,358,359,360,361,362,36
 // Ships support engine, shield, ammo, hangar mods.
 // Turrets (StructData) support shield mods only.
 // Tech items have no effective mod slots.
-const ENGINE_MODS  = [1, 2, 3, 4, 5];            // Engine A-E  (speed/turn/thrust)
+const ENGINE_MODS  = [1, 2, 3, 4, 5];            // Engine A-E  (speed/turn/thrust), then other upgrades that apply to all ships
 const SHIELD_MODS  = [6, 7, 8, 9, 10];           // Shield A-E  (shield HP + regen)
 const AMMO_MODS    = [11, 12, 13, 14, 15, 16, 17, 18]; // EMP/Acid/Force/Neutron/Iridium/Thermal/Freeze/Fusion
-const HANGAR_MODS  = [21, 22, 23, 24, 25, 26, 27, 28]; // Hangar ship types
+const HANGAR_MODS  = [21, 22, 23, 24, 25, 26, 27, 28, 37, 38]; // Hangar ship types, then extra ships and faster launching
+const TURRET_ONLY_MODS = [50, 51] // Insurance and Mini-Reactor
+const SHIP_ONLY_MODS = [60] // Piranha Hangar (only has effect on medium and up ships)
+const TURRET_AND_SHIP_MODS = [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 80] // armour, armour regen, fire rate, range, duplicates of those. 48 is self destruct, 80 is cloak
 
 /**
  * Generate a fresh rotating shop inventory.
@@ -75,8 +78,13 @@ function generateShopItems() {
   function shipItem(tier) {
     const id = pick(tier);
     // Each slot: independently roll a mod category or none
-    const candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, 0, 0, 0]; // weighted toward none
-    const candidates2 = [...ENGINE_MODS, ...SHIELD_MODS, 0, 0, 0, 0, 0]; // simpler second mod
+    if (id >= 248) {
+      // Medium and up ships get hangar mods
+      const candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, HANGAR_MODS, SHIP_ONLY_MODS, 0, 0, 0]; // weighted toward none
+    } else {
+      const candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0]; // weighted toward none
+    }
+    const candidates2 = [...ENGINE_MODS, ...SHIELD_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0, 0, 0]; // simpler second mod
     const m1 = pick(candidates1);
     const m2 = m1 > 0 ? pick(candidates2) : 0;
     return [id, m1, m2, 0];
@@ -85,7 +93,7 @@ function generateShopItems() {
   function turretItem() {
     const id = pick(VALID_TURRET_IDS);
     // Turrets support shield mods and some ammo mods
-    const candidates = [...SHIELD_MODS, ...AMMO_MODS, 0, 0, 0, 0];
+    const candidates = [...SHIELD_MODS, ...AMMO_MODS, ...TURRET_ONLY_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0, 0];
     const m1 = pick(candidates);
     return [id, m1, 0, 0];
   }
