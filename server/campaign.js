@@ -52,10 +52,18 @@ const VALID_TECH_IDS   = [350,351,352,353,354,355,356,357,358,359,360,361,362,36
 // Ships support engine, shield, ammo, hangar mods.
 // Turrets (StructData) support shield mods only.
 // Tech items have no effective mod slots.
-const ENGINE_MODS  = [1, 2, 3, 4, 5];            // Engine A-E  (speed/turn/thrust)
+const ENGINE_MODS  = [1, 2, 3, 4, 5];            // Engine A-E  (speed/turn/thrust), then other upgrades that apply to all ships
 const SHIELD_MODS  = [6, 7, 8, 9, 10];           // Shield A-E  (shield HP + regen)
 const AMMO_MODS    = [11, 12, 13, 14, 15, 16, 17, 18]; // EMP/Acid/Force/Neutron/Iridium/Thermal/Freeze/Fusion
-const HANGAR_MODS  = [21, 22, 23, 24, 25, 26, 27, 28]; // Hangar ship types
+const HANGAR_MODS  = [21, 22, 23, 24, 25, 26, 27, 28, 37, 38]; // Hangar ship types, then extra ships and faster launching
+const TURRET_ONLY_MODS = [50, 51] // Insurance and Mini-Reactor
+const SHIP_ONLY_MODS = [60] // Piranha Hangar (only has effect on medium and up ships)
+const TURRET_AND_SHIP_MODS = [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 80] // armour, armour regen, fire rate, range, duplicates of those. 48 is self destruct, 80 is cloak
+
+
+// Utility functions for grabbing a random thing from a set
+function pick(pool)  { return pool[Math.floor(Math.random() * pool.length)]; }
+function maybe(pool, chance) { return Math.random() < chance ? pick(pool) : 0; }
 
 /**
  * Generate a fresh rotating shop inventory.
@@ -68,15 +76,20 @@ function generateShopItems() {
   const tierMid      = VALID_SHIP_IDS.filter(id => id >= 248 && id <= 265);   // 18 ships
   const tierAdvanced = VALID_SHIP_IDS.filter(id => id >= 299 && id <= 316);   // 18 ships
 
-  function pick(pool)  { return pool[Math.floor(Math.random() * pool.length)]; }
-  function maybe(pool, chance) { return Math.random() < chance ? pick(pool) : 0; }
+
 
   // Build an item with zero, one, or two mods chosen from appropriate pools.
   function shipItem(tier) {
     const id = pick(tier);
     // Each slot: independently roll a mod category or none
-    const candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, 0, 0, 0]; // weighted toward none
-    const candidates2 = [...ENGINE_MODS, ...SHIELD_MODS, 0, 0, 0, 0, 0]; // simpler second mod
+	var candidates1 = []
+    if (id >= 248) {
+      // Medium and up ships get hangar mods
+      candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, HANGAR_MODS, SHIP_ONLY_MODS, 0, 0, 0]; // weighted toward none
+    } else {
+      candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0]; // weighted toward none
+    }
+    const candidates2 = [...ENGINE_MODS, ...SHIELD_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0, 0, 0]; // simpler second mod
     const m1 = pick(candidates1);
     const m2 = m1 > 0 ? pick(candidates2) : 0;
     return [id, m1, m2, 0];
@@ -85,7 +98,7 @@ function generateShopItems() {
   function turretItem() {
     const id = pick(VALID_TURRET_IDS);
     // Turrets support shield mods and some ammo mods
-    const candidates = [...SHIELD_MODS, ...AMMO_MODS, 0, 0, 0, 0];
+    const candidates = [...SHIELD_MODS, ...AMMO_MODS, ...TURRET_ONLY_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0, 0];
     const m1 = pick(candidates);
     return [id, m1, 0, 0];
   }
@@ -240,14 +253,34 @@ function buildFullArmoryArgs(player) {
 }
 
 function upgradeItem(player, armoryIndex) {
+  // Return error if no item in that slot or the player doesn't have enough money
   if (armoryIndex < 0 || armoryIndex >= player.armory.length) return { success: false };
   if ((player.credits || 0) < 750) return { success: false };
+  
   const updated  = Object.assign({}, player);
   updated.armory = player.armory.map(i => i ? [...i] : null);
   updated.credits = player.credits - 750;
   const item = updated.armory[armoryIndex];
   if (!item || item[0] < 0) return { success: false };
-  item[1] = Math.min(item[1] + 1, 4);
+  // Picking the actual upgrade: Upgrade slot 1 is incremented by 1 (THIS IS NOT CORRECT! SHOULD BE USING pick(the relevant options) 1-3 TIMES!)
+  //item[1] = Math.min(item[1] + 1, 4);
+  // Assemble upgrade options
+  var candidates = []
+  if (item.id < 200) {
+	// It's a turret
+	candidates = [...SHIELD_MODS, ...AMMO_MODS, ...TURRET_ONLY_MODS, ...TURRET_AND_SHIP_MODS];
+  } else if (item.id < 350) {
+	// It's a ship
+	candidates = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, HANGAR_MODS, SHIP_ONLY_MODS]; 
+  } else {
+	// I have no clue what this is (maybe the shield?) so I just give it everything. Worst case it does nothing
+	candidates = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, HANGAR_MODS, SHIP_ONLY_MODS, ...TURRET_ONLY_MODS]; 
+  }
+  // Actually do the upgrade
+  item[1] = pick(candidates)
+  item[2] = maybe(candidates, 0.4)
+  item[3] = maybe(candidates, 0.1) 
+	  
   return { success: true, updatedPlayer: updated };
 }
 
