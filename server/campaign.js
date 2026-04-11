@@ -78,11 +78,12 @@ function generateShopItems() {
   function shipItem(tier) {
     const id = pick(tier);
     // Each slot: independently roll a mod category or none
+    var candidates1 = []
     if (id >= 248) {
       // Medium and up ships get hangar mods
-      const candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, HANGAR_MODS, SHIP_ONLY_MODS, 0, 0, 0]; // weighted toward none
+      candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, HANGAR_MODS, SHIP_ONLY_MODS, 0, 0, 0]; // weighted toward none
     } else {
-      const candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0]; // weighted toward none
+      candidates1 = [...ENGINE_MODS, ...SHIELD_MODS, ...AMMO_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0]; // weighted toward none
     }
     const candidates2 = [...ENGINE_MODS, ...SHIELD_MODS, ...TURRET_AND_SHIP_MODS, 0, 0, 0, 0, 0]; // simpler second mod
     const m1 = pick(candidates1);
