@@ -248,13 +248,16 @@ function buildFullArmoryArgs(player) {
 }
 
 function upgradeItem(player, armoryIndex) {
+  // Return error if no item in that slot or the player doesn't have enough money
   if (armoryIndex < 0 || armoryIndex >= player.armory.length) return { success: false };
   if ((player.credits || 0) < 750) return { success: false };
+  
   const updated  = Object.assign({}, player);
   updated.armory = player.armory.map(i => i ? [...i] : null);
   updated.credits = player.credits - 750;
   const item = updated.armory[armoryIndex];
   if (!item || item[0] < 0) return { success: false };
+  // Picking the actual upgrade: Upgrade slot 1 is incremented by 1 (THIS IS NOT CORRECT! SHOULD BE USING pick(the relevant options) 1-3 TIMES!)
   item[1] = Math.min(item[1] + 1, 4);
   return { success: true, updatedPlayer: updated };
 }
